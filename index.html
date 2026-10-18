@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>周邊買賣記帳小幫手</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--ink:#1d2742;--mute:#6a7491;--line:#dde2ee;--acc:#d6336c;--acc2:#2b6cb0;--gain:#1b8a5a;--loss:#d13b3b;--warn:#b7791f;--chip:#eef1f8}
+html.dark{--bg:#12172a;--card:#1b2240;--ink:#e8ecfa;--mute:#98a3c7;--line:#2d3760;--acc:#ff6b9d;--acc2:#6fa8ff;--gain:#4cd69a;--loss:#ff7b7b;--warn:#f0b955;--chip:#252e52}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line);background:var(--card)}
+h1{margin:0;font-size:22px}h1 small{font-weight:400;color:var(--mute);font-size:13px;margin-left:8px}
+main{max-width:1100px;margin:0 auto;padding:16px}
+button,select,input,textarea{font:inherit;color:var(--ink)}
+button{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:6px 12px;cursor:pointer}
+button:hover{border-color:var(--acc)}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--acc2);outline-offset:1px}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+button.sm{padding:3px 8px;font-size:13px}button.del{color:var(--loss)}
+input,select,textarea{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stat{text-align:left;padding:12px;border-radius:12px}.stat b{display:block;font-size:22px}.stat span{color:var(--mute);font-size:13px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:12px}
+.panel h2{margin:0 0 8px;font-size:16px}
+#steward li{margin:3px 0}.w{color:var(--warn)}.l{color:var(--loss)}.g{color:var(--gain)}
+.bars{display:flex;align-items:flex-end;gap:8px;height:110px;padding-top:6px}
+.bar{flex:1;text-align:center;font-size:12px;color:var(--mute);display:flex;flex-direction:column;justify-content:flex-end;height:100%}
+.bar i{display:block;border-radius:4px 4px 0 0;background:var(--gain);min-height:2px}.bar i.neg{background:var(--loss)}
+.filters{display:grid;grid-template-columns:2fr repeat(5,1fr);gap:8px;margin-top:12px}
+table{width:100%;border-collapse:collapse}th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:13px;color:var(--mute);font-weight:500}
+.tag{display:inline-block;padding:1px 8px;border-radius:99px;background:var(--chip);font-size:12px}
+.tag.s2{background:var(--acc2);color:#fff}.tag.s3{background:var(--gain);color:#fff}
+.sub{color:var(--mute);font-size:12px}.num{white-space:nowrap}
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);width:min(640px,94vw);padding:16px}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}.grid label{font-size:13px;color:var(--mute)}.full{grid-column:1/-1}
+.preview{background:var(--chip);border-radius:8px;padding:8px;font-weight:600}
+#chatBtn{position:fixed;right:16px;bottom:16px;border-radius:99px;padding:10px 16px;box-shadow:0 2px 10px rgba(0,0,0,.25);z-index:5}
+#chat{position:fixed;right:16px;bottom:70px;width:min(340px,92vw);height:440px;display:none;flex-direction:column;z-index:5;padding:0;overflow:hidden;margin:0}
+#chat.open{display:flex}
+#chat header{padding:10px 12px;font-weight:600}
+#log{flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:6px}
+.m{max-width:88%;padding:6px 10px;border-radius:10px;background:var(--chip);white-space:pre-wrap}.m.me{align-self:flex-end;background:var(--acc2);color:#fff}
+.quick{display:flex;flex-wrap:wrap;gap:4px;padding:6px 10px}
+#ask{display:flex;gap:6px;padding:8px;border-top:1px solid var(--line)}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:10px;display:none;z-index:9}
+.cards{display:none}
+@media(max-width:720px){
+ .stats{grid-template-columns:1fr 1fr}.filters{grid-template-columns:1fr 1fr}.filters input{grid-column:1/-1}
+ table.t{display:none}.cards{display:block}
+ .item{border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:8px}
+ .grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<header>
+ <h1>周邊買賣記帳小幫手<small>買入、售出、利潤一次看</small></h1>
+ <div><button id="sample">載入範例資料</button> <button id="dark">深色模式</button> <button class="pri" id="add">＋新增物品</button></div>
+</header>
+<main>
+ <section class="stats" id="stats"></section>
+ <section class="panel"><h2>管家提醒</h2><ul id="steward" style="margin:0;padding-left:18px"></ul></section>
+ <section class="panel"><h2>每月利潤</h2><div class="bars" id="bars"></div></section>
+ <section class="filters">
+  <input id="q" placeholder="搜尋名稱、對象…" aria-label="搜尋">
+  <select id="fStatus"></select><select id="fCat"></select><select id="fPlat"></select><select id="fAcc"></select>
+  <select id="sort"><option value="buyDate">依買入日</option><option value="profit">依利潤</option><option value="days">依持有天數</option></select>
+ </section>
+ <section class="panel" id="list"></section>
+ <p style="margin-top:12px"><button id="csv">匯出 CSV</button> <button id="xls">匯出 Excel</button> <button class="del" id="clear">清空資料</button></p>
+</main>
+
+<dialog id="dlg"><form id="form" method="dialog">
+ <h2 id="dTitle" style="margin-top:0">新增物品</h2>
+ <div class="grid">
+  <div><label>角色</label><input name="char" list="dlChar" required></div>
+  <div><label>原畫／動畫</label><select name="series"><option>原畫</option><option>動畫</option></select></div>
+  <div><label>彈數</label><input name="gen" placeholder="例：第3彈"></div>
+  <div><label>商品種類</label><select name="cat"></select></div>
+  <div class="full preview" id="namePrev"></div>
+  <div><label>商品狀態</label><select name="cond"><option>全新</option><option>拆封</option><option>有瑕疵</option></select></div>
+  <div><label>目前進度</label><select name="status"><option>持有中</option><option>已上架</option><option>已售出</option></select></div>
+  <div><label>買入金額</label><input name="buyPrice" type="number" min="0" required></div>
+  <div><label>買入日期</label><input name="buyDate" type="date" required></div>
+  <div><label>買入平台</label><select name="buyPlat"></select></div>
+  <div><label>購入使用的帳戶</label><input name="buyAcc" list="dlAcc"></div>
+  <div class="full"><label>向誰購入</label><input name="buyFrom" list="dlPeople"></div>
+  <div class="full" id="sellBox" style="display:none"><div class="grid">
+   <div><label>售出金額</label><input name="sellPrice" type="number" min="0"></div>
+   <div><label>售出日期</label><input name="sellDate" type="date"></div>
+   <div><label>售出平台</label><select name="sellPlat"></select></div>
+   <div><label>售出使用的帳戶</label><input name="sellAcc" list="dlAcc"></div>
+   <div><label>賣給誰</label><input name="sellTo" list="dlPeople"></div>
+   <div><label>包材成本</label><input name="pack" type="number" min="0"></div>
+   <div><label>手續費</label><input name="fee" type="number" min="0"></div>
+   <div><label>想要的利潤率 %（算建議售價）</label><input id="wantRate" type="number" placeholder="例：30"></div>
+   <div class="full preview" id="profPrev"></div>
+  </div></div>
+ </div>
+ <datalist id="dlChar"></datalist><datalist id="dlAcc"></datalist><datalist id="dlPeople"></datalist>
+ <p style="text-align:right;margin-bottom:0"><button type="button" id="cancel">取消</button> <button class="pri" type="submit">儲存</button></p>
+</form></dialog>
+
+<button class="pri" id="chatBtn">小幫手</button>
+<section class="panel" id="chat" aria-label="小幫手">
+ <header>小幫手 <button class="sm" id="chatX">關閉</button></header>
+ <div id="log"></div><div class="quick" id="quick"></div>
+ <form id="ask"><input id="askIn" placeholder="輸入問題，例如「哪個種類最賺」"><button class="pri">送出</button></form>
+</section>
+<div id="toast"></div>
+
+<script>
+const CATS=["徽章","立牌","娃娃","壓克力片","杯墊","餅卡","明信片","吊飾","特典","閃卡","小卡","扭蛋","貼紙","光柵卡"];
+const PLATS=["FB","賣貨便","蝦皮","面交","其他"];
+const KEY="merchLedger.v1";
+let items=[],last=null,editId=null,filterStatus="";
+try{items=JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){items=[]}
+const $=s=>document.querySelector(s),F=$("#form");
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(items))}catch(e){}};
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const N=v=>Number(v)||0, money=n=>(n<0?"-":"")+"$"+Math.abs(Math.round(n)).toLocaleString();
+const name=i=>[i.char,i.series,i.gen,i.cat].filter(Boolean).join("-");
+const sold=i=>i.status==="已售出";
+const profit=i=>N(i.sellPrice)-N(i.buyPrice)-N(i.pack)-N(i.fee);
+const days=i=>{if(!i.buyDate)return 0;const e=sold(i)&&i.sellDate?new Date(i.sellDate):new Date();return Math.max(0,Math.round((e-new Date(i.buyDate))/864e5))};
+const rate=i=>N(i.buyPrice)?profit(i)/N(i.buyPrice)*100:0;
+const opts=(a,all)=>(all?`<option value="">${all}</option>`:"")+a.map(x=>`<option>${esc(x)}</option>`).join("");
+const uniq=k=>[...new Set(items.map(i=>i[k]).filter(Boolean))];
+function toast(msg,undo){const t=$("#toast");t.innerHTML=esc(msg)+(undo?' <button class="sm" id="undo">復原</button>':"");t.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display="none",5000);if(undo)$("#undo").onclick=()=>{undo();t.style.display="none"}}
+
+/* ---------- 篩選 ---------- */
+function setupFilters(){
+ const v=[fStatus.value,fCat.value,fPlat.value,fAcc.value];
+ fStatus.innerHTML=opts(["持有中","已上架","已售出"],"全部狀態");fCat.innerHTML=opts(CATS,"全部種類");
+ fPlat.innerHTML=opts(PLATS,"全部平台");fAcc.innerHTML=opts(uniq("buyAcc").concat(uniq("sellAcc")).filter((x,i,a)=>a.indexOf(x)===i),"全部帳戶");
+ fStatus.value=v[0];fCat.value=v[1];fPlat.value=v[2];fAcc.value=v[3];
+}
+function view(){
+ const q=$("#q").value.trim().toLowerCase();
+ let r=items.filter(i=>(!fStatus.value||i.status===fStatus.value)&&(!fCat.value||i.cat===fCat.value)&&
+  (!fPlat.value||i.buyPlat===fPlat.value||i.sellPlat===fPlat.value)&&(!fAcc.value||i.buyAcc===fAcc.value||i.sellAcc===fAcc.value)&&
+  (!q||(name(i)+i.buyFrom+i.sellTo+i.note).toLowerCase().includes(q)));
+ const s=$("#sort").value;
+ r.sort((a,b)=>s==="profit"?profit(b)-profit(a):s==="days"?days(b)-days(a):(b.buyDate||"").localeCompare(a.buyDate||""));
+ return r;
+}
+
+/* ---------- 畫面 ---------- */
+function render(){
+ setupFilters();
+ const so=items.filter(sold),ho=items.filter(i=>!sold(i));
+ const spend=items.reduce((s,i)=>s+N(i.buyPrice),0),inc=so.reduce((s,i)=>s+N(i.sellPrice),0),pf=so.reduce((s,i)=>s+profit(i),0),hc=ho.reduce((s,i)=>s+N(i.buyPrice),0);
+ $("#stats").innerHTML=[["總支出",money(spend),""],["總收入",money(inc),"已售出"],["總利潤",money(pf),"已售出"],["持有中成本",money(hc),"持有中"]]
+  .map(([a,b,f])=>`<button class="stat" data-f="${f}"><span>${a}</span><b class="${a==="總利潤"?(pf<0?"l":"g"):""}">${b}</b></button>`).join("");
+ document.querySelectorAll(".stat").forEach(b=>b.onclick=()=>{fStatus.value=b.dataset.f;render()});
+ steward();chart();
+ const r=view();
+ const row=i=>{const p=sold(i)?`<span class="${profit(i)<0?"l":"g"}">${money(profit(i))}（${rate(i).toFixed(0)}%）</span>`:"—";
+  return {n:`<b>${esc(name(i))}</b><div class="sub">${esc(i.cond)}｜${esc(i.buyPlat)}／${esc(i.buyAcc||"未填帳戶")}${i.buyFrom?"｜向 "+esc(i.buyFrom):""}</div>`,
+  s:`<span class="tag ${i.status==="已上架"?"s2":sold(i)?"s3":""}">${i.status}</span>`,
+  d:`${esc(i.buyDate)}<div class="sub">${days(i)} 天${sold(i)?"賣出":"（持有中）"}</div>`,p,
+  b:`<button class="sm" data-a="edit" data-id="${i.id}">編輯</button> ${sold(i)?"":`<button class="sm" data-a="sell" data-id="${i.id}">標記出物</button> `}<button class="sm del" data-a="del" data-id="${i.id}">刪除</button>`}};
+ if(!r.length){$("#list").innerHTML=`<p class="sub">${items.length?"沒有符合條件的物品，請調整篩選。":"還沒有紀錄。按「＋新增物品」開始，或載入範例資料。"}</p>`;return}
+ $("#list").innerHTML=`<table class="t"><tr><th>商品</th><th>狀態</th><th>買入</th><th>售價</th><th>利潤</th><th>買入日／天數</th><th></th></tr>`+
+  r.map(i=>{const o=row(i);return `<tr><td>${o.n}</td><td>${o.s}</td><td class="num">${money(N(i.buyPrice))}</td><td class="num">${sold(i)?money(N(i.sellPrice)):"—"}</td><td class="num">${o.p}</td><td>${o.d}</td><td>${o.b}</td></tr>`}).join("")+`</table><div class="cards">`+
+  r.map(i=>{const o=row(i);return `<div class="item">${o.n}<div>${o.s} 買 ${money(N(i.buyPrice))} → ${sold(i)?money(N(i.sellPrice)):"—"}　${o.p}</div><div class="sub">${o.d.replace(/<[^>]+>/g," ")}</div><div style="margin-top:6px">${o.b}</div></div>`}).join("")+`</div>`;
+}
+function alerts(){
+ const a=[];
+ items.forEach(i=>{
+  if(!sold(i)&&days(i)>30)a.push(["w",`「${name(i)}」已持有 ${days(i)} 天，放太久了，考慮降價或上架。`]);
+  if(sold(i)&&profit(i)<0)a.push(["l",`「${name(i)}」賠了 ${money(-profit(i))}。`]);
+  if(i.status==="已上架"&&!i.sellPlat)a.push(["w",`「${name(i)}」已上架但沒填售出平台，請補資料。`]);
+  if(sold(i)&&!i.sellAcc)a.push(["w",`「${name(i)}」已售出但沒填使用的帳戶。`]);
+ });return a;
+}
+function steward(){const a=alerts();$("#steward").innerHTML=a.length?a.map(x=>`<li class="${x[0]}">${esc(x[1])}</li>`).join(""):'<li class="g">目前一切正常</li>'}
+function chart(){
+ const m={};items.filter(i=>sold(i)&&i.sellDate).forEach(i=>{const k=i.sellDate.slice(0,7);m[k]=(m[k]||0)+profit(i)});
+ const k=Object.keys(m).sort().slice(-6);if(!k.length){$("#bars").innerHTML='<span class="sub">有售出紀錄後，這裡會顯示每月利潤。</span>';return}
+ const mx=Math.max(...k.map(x=>Math.abs(m[x])),1);
+ $("#bars").innerHTML=k.map(x=>`<div class="bar">${money(m[x])}<i class="${m[x]<0?"neg":""}" style="height:${Math.abs(m[x])/mx*70}%"></i>${x.slice(5)}月</div>`).join("");
+}
+
+/* ---------- 表單 ---------- */
+function fillLists(){
+ $("#dlChar").innerHTML=uniq("char").map(x=>`<option value="${esc(x)}">`).join("");
+ $("#dlAcc").innerHTML=uniq("buyAcc").concat(uniq("sellAcc")).map(x=>`<option value="${esc(x)}">`).join("");
+ $("#dlPeople").innerHTML=uniq("buyFrom").concat(uniq("sellTo")).map(x=>`<option value="${esc(x)}">`).join("");
+}
+function formData(){const o={};new FormData(F).forEach((v,k)=>o[k]=v);return o}
+function updatePrev(){
+ const d=formData();$("#namePrev").textContent="商品名稱預覽："+(name(d)||"（請填角色與種類）");
+ $("#sellBox").style.display=d.status==="已售出"?"block":"none";
+ if(d.status==="已售出"){const p=profit(d),r=N(d.buyPrice)?p/N(d.buyPrice)*100:0;
+  const want=N($("#wantRate").value);let sug="";
+  if(want)sug=`｜要達到 ${want}% 利潤率，建議售價 ${money(Math.ceil(N(d.buyPrice)*(1+want/100)+N(d.pack)+N(d.fee)))}`;
+  $("#profPrev").innerHTML=`預估利潤：<span class="${p<0?"l":"g"}">${money(p)}（${r.toFixed(0)}%）</span>${esc(sug)}`}
+}
+function openForm(id,mode){
+ editId=id||null;fillLists();F.reset();$("#wantRate").value="";
+ F.cat.innerHTML=opts(CATS);F.buyPlat.innerHTML=opts(PLATS);F.sellPlat.innerHTML=opts(PLATS);
+ const i=items.find(x=>x.id===id);
+ if(i)Object.keys(i).forEach(k=>{if(F[k]&&k!=="id")F[k].value=i[k]??""});
+ else F.buyDate.value=today();
+ if(mode==="sell"){F.status.value="已售出";if(!F.sellDate.value)F.sellDate.value=today()}
+ $("#dTitle").textContent=mode==="sell"?"標記出物":i?"編輯物品":"新增物品";
+ updatePrev();$("#dlg").showModal();
+}
+F.addEventListener("input",updatePrev);F.addEventListener("change",()=>{if(F.status.value==="已售出"&&!F.sellDate.value)F.sellDate.value=today();updatePrev()});
+$("#wantRate").oninput=updatePrev;
+document.addEventListener("wheel",()=>{const a=document.activeElement;if(a&&a.type==="number")a.blur()},{passive:true});
+F.onsubmit=e=>{
+ const d=formData();
+ if(d.status==="已售出"&&(d.sellPrice===""||!d.sellDate)){e.preventDefault();toast("已售出需要填售出金額與售出日期");return}
+ if(editId){const i=items.find(x=>x.id===editId);Object.assign(i,d)}else items.push({id:"i"+Date.now()+Math.random().toString(36).slice(2,5),...d});
+ save();render();toast("已儲存");
+};
+$("#cancel").onclick=()=>$("#dlg").close();
+
+/* ---------- 列表操作 ---------- */
+document.addEventListener("click",e=>{
+ const b=e.target.closest("[data-a]");if(!b)return;const id=b.dataset.id;
+ if(b.dataset.a==="edit")openForm(id);
+ if(b.dataset.a==="sell")openForm(id,"sell");
+ if(b.dataset.a==="del"){
+  const i=items.find(x=>x.id===id);if(!confirm(`確定刪除「${name(i)}」？`))return;
+  const idx=items.indexOf(i);items.splice(idx,1);last={i,idx};save();render();
+  toast("已刪除",()=>{items.splice(last.idx,0,last.i);save();render()});
+ }
+});
+["#q","#fStatus","#fCat","#fPlat","#fAcc","#sort"].forEach(s=>$(s).addEventListener("input",render));
+$("#add").onclick=()=>openForm();
+$("#clear").onclick=()=>{if(items.length&&confirm("確定清空所有資料？")&&confirm("真的要清空嗎？此動作無法復原。")){items=[];save();render()}};
+$("#dark").onclick=()=>{document.documentElement.classList.toggle("dark");try{localStorage.setItem("merchDark",document.documentElement.classList.contains("dark")?"1":"")}catch(e){}};
+try{if(localStorage.getItem("merchDark"))document.documentElement.classList.add("dark")}catch(e){}
+$("#sample").onclick=()=>{
+ const d=n=>{const x=new Date();x.setDate(x.getDate()-n);return x.toISOString().slice(0,10)};
+ const mk=(o)=>({id:"s"+Math.random().toString(36).slice(2,8),series:"原畫",cond:"全新",buyPlat:"FB",sellPlat:"",sellPrice:"",sellDate:"",sellAcc:"",sellTo:"",pack:"",fee:"",note:"",...o});
+ items.push(
+  mk({char:"範例角色A",gen:"第2彈",cat:"徽章",buyPrice:150,buyDate:d(50),buyAcc:"FB帳號甲",buyFrom:"王小明",status:"持有中"}),
+  mk({char:"範例角色B",series:"動畫",gen:"第1彈",cat:"立牌",buyPrice:300,buyDate:d(20),buyAcc:"FB帳號甲",buyFrom:"李小美",status:"已上架",sellPlat:"賣貨便"}),
+  mk({char:"範例角色C",gen:"第3彈",cat:"壓克力片",buyPrice:200,buyDate:d(25),buyAcc:"FB帳號乙",buyFrom:"陳同學",status:"已售出",sellPrice:380,sellDate:d(5),sellPlat:"賣貨便",sellAcc:"賣貨便帳號",sellTo:"林同學",pack:15,fee:23}),
+  mk({char:"範例角色A",gen:"第1彈",cat:"杯墊",buyPrice:120,buyDate:d(15),buyAcc:"FB帳號乙",buyFrom:"張同學",status:"已售出",sellPrice:100,sellDate:d(3),sellPlat:"蝦皮",sellAcc:"蝦皮帳號",sellTo:"黃同學",pack:10,fee:8}));
+ save();render();toast("已載入範例資料");
+};
+$("#csv").onclick=()=>{
+ const h=["名稱","狀態","商品狀態","買入金額","買入日期","買入平台","購入帳戶","向誰購入","售出金額","售出日期","售出平台","售出帳戶","賣給誰","包材","手續費","利潤","持有天數"];
+ const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+ const rows=items.map(i=>[name(i),i.status,i.cond,i.buyPrice,i.buyDate,i.buyPlat,i.buyAcc,i.buyFrom,i.sellPrice,i.sellDate,i.sellPlat,i.sellAcc,i.sellTo,i.pack,i.fee,sold(i)?profit(i):"",days(i)]);
+ const blob=new Blob(["\ufeff"+[h,...rows].map(r=>r.map(q).join(",")).join("\n")],{type:"text/csv;charset=utf-8"});
+ const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="周邊記帳.csv";a.click();
+};
+
+$("#xls").onclick=()=>{
+ const h=["名稱","狀態","商品狀態","買入金額","買入日期","買入平台","購入帳戶","向誰購入","售出金額","售出日期","售出平台","售出帳戶","賣給誰","包材","手續費","利潤","持有天數"];
+ const rows=items.map(i=>[name(i),i.status,i.cond,i.buyPrice,i.buyDate,i.buyPlat,i.buyAcc,i.buyFrom,i.sellPrice,i.sellDate,i.sellPlat,i.sellAcc,i.sellTo,i.pack,i.fee,sold(i)?profit(i):"",days(i)]);
+ const t=r=>"<tr>"+r.map(c=>"<td>"+esc(c)+"</td>").join("")+"</tr>";
+ const html='<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body><table border="1">'+t(h)+rows.map(t).join("")+"</table></body></html>";
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([html],{type:"application/vnd.ms-excel;charset=utf-8"}));a.download="周邊記帳.xls";a.click();
+};
+/* ---------- 小幫手（規則式，非連網 AI） ---------- */
+const QS=["這個月賺多少？","哪個種類最賺？","哪個帳戶利潤最高？","哪些東西放太久？","平均幾天賣出？","最近一筆交易"];
+function rank(key){const m={};items.filter(sold).forEach(i=>{const k=i[key]||"未填";m[k]=(m[k]||0)+profit(i)});return Object.entries(m).sort((a,b)=>b[1]-a[1])}
+function answer(t){
+ const so=items.filter(sold);
+ if(!items.length)return "目前還沒有資料，先新增物品或載入範例資料吧。";
+ if(/這個月|本月|月/.test(t)){const m=today().slice(0,7);const x=so.filter(i=>(i.sellDate||"").startsWith(m));return `本月已售出 ${x.length} 件，利潤共 ${money(x.reduce((s,i)=>s+profit(i),0))}。`}
+ if(/種類|分類/.test(t)){const r=rank("cat");return r.length?"各種類利潤排名：\n"+r.map((x,i)=>`${i+1}. ${x[0]} ${money(x[1])}`).join("\n"):"還沒有售出紀錄。"}
+ if(/帳戶|帳號/.test(t)){const r=rank("sellAcc");return r.length?"各帳戶利潤排名：\n"+r.map((x,i)=>`${i+1}. ${x[0]} ${money(x[1])}`).join("\n"):"還沒有售出紀錄。"}
+ if(/放太久|太久|持有/.test(t)){const x=items.filter(i=>!sold(i)&&days(i)>30);return x.length?"持有超過 30 天：\n"+x.map(i=>`• ${name(i)}（${days(i)} 天）`).join("\n"):"沒有放超過 30 天的物品。"}
+ if(/平均|幾天/.test(t)){return so.length?`平均 ${(so.reduce((s,i)=>s+days(i),0)/so.length).toFixed(1)} 天賣出（共 ${so.length} 件）。`:"還沒有售出紀錄。"}
+ if(/最近|最新/.test(t)){const x=[...items].sort((a,b)=>(b.sellDate||b.buyDate||"").localeCompare(a.sellDate||a.buyDate||""))[0];return `最近一筆：${name(x)}，${x.status}，買入 ${money(N(x.buyPrice))}${sold(x)?`，利潤 ${money(profit(x))}`:""}。`}
+ return "我看不懂這個問題，可以試試下面的快速提問，或輸入「種類」「帳戶」「放太久」「平均」「最近」等關鍵字。";
+}
+function say(t,me){const d=document.createElement("div");d.className="m"+(me?" me":"");d.textContent=t;$("#log").append(d);$("#log").scrollTop=1e9}
+$("#quick").innerHTML=QS.map(q=>`<button class="sm">${q}</button>`).join("");
+$("#quick").onclick=e=>{if(e.target.tagName==="BUTTON"){say(e.target.textContent,1);say(answer(e.target.textContent))}};
+$("#ask").onsubmit=e=>{e.preventDefault();const t=$("#askIn").value.trim();if(!t)return;say(t,1);say(answer(t));$("#askIn").value=""};
+$("#chatBtn").onclick=()=>{$("#chat").classList.toggle("open");if(!$("#log").children.length)say("嗨，我是小幫手。我會依你記錄的資料即時計算，點下面的問題或直接輸入關鍵字。")};
+$("#chatX").onclick=()=>$("#chat").classList.remove("open");
+
+render();
+</script>
+</body>
+</html>
